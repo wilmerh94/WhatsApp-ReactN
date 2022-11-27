@@ -17,6 +17,9 @@ import colors from '../constants/colors';
 
 export const ChatListScreen = props => {
   const selectedUser = props.route?.params?.selectedUserId;
+  const selectedUserList = props.route?.params?.selectedUsers;
+  const chatName = props.route?.params?.chatName;
+
   const { userData } = useSelector(state => state.auth);
   const { storedUsers } = useSelector(state => state.users);
 
@@ -27,7 +30,6 @@ export const ChatListScreen = props => {
       return new Date(b.updatedAt) - new Date(a.updatedAt);
     });
   });
-
   useEffect(() => {
     props.navigation.setOptions({
       headerRight: () => {
@@ -43,16 +45,46 @@ export const ChatListScreen = props => {
       },
     });
   }, []);
-
   useEffect(() => {
-    if (!selectedUser) return;
-    const chatUser = [selectedUser, userData.userId];
-    const navigationProps = {
-      newChatData: { users: chatUser },
-    };
+    if (!selectedUser && !selectedUserList) {
+      return;
+    }
+
+    let chatData;
+    let navigationProps;
+    if (selectedUser) {
+      chatData = userChatData.find(
+        cd => !cd.isGroupChat && cd.users.includes(selectedUser),
+      );
+    }
+
+    if (chatData) {
+      navigationProps = { chatId: chatData.key };
+    } else {
+      const chatUsers = selectedUserList || [selectedUser];
+      if (!chatUsers.includes(userData.userId)) {
+        chatUsers.push(userData.userId);
+      }
+      const newChatDataGroup = {
+        users: chatUsers,
+        isGroupChat: selectedUserList !== undefined,
+        chatName,
+      };
+      const newChatDataSingle = {
+        users: chatUsers,
+        isGroupChat: selectedUserList !== undefined,
+      };
+
+      const newChatData =
+        chatName !== undefined ? newChatDataGroup : newChatDataSingle;
+
+      navigationProps = {
+        newChatData,
+      };
+    }
+
     props.navigation.navigate('ChatScreen', navigationProps);
   }, [props.route?.params]);
-
   return (
     <PageContainer>
       <PageTitle text="Chats" />
@@ -68,17 +100,26 @@ export const ChatListScreen = props => {
         data={userChatData}
         renderItem={itemData => {
           const chatData = itemData.item;
+
           const chatId = chatData.key;
+          const isGroupChat = chatData.isGroupChat;
 
-          const otherUserId = chatData.users.find(
-            uid => uid !== userData.userId,
-          );
-          const otherUser = storedUsers[otherUserId];
-          if (!otherUser) return;
+          let title = '';
+          const subTitle = chatData.latestMessageText || 'New chat';
+          let image = '';
 
-          const title = `${otherUser.firstName} ${otherUser.lastName}`;
-          const subTitle = chatData.latestMessageText || 'New Chat';
-          const image = otherUser.profilePicture;
+          if (isGroupChat) {
+            title = chatData.chatName;
+          } else {
+            const otherUserId = chatData.users.find(
+              uid => uid !== userData.userId,
+            );
+            const otherUser = storedUsers[otherUserId];
+            if (!otherUser) return;
+
+            title = `${otherUser.firstName} ${otherUser.lastName}`;
+            image = otherUser.profilePicture;
+          }
           return (
             <DataItem
               title={title}

@@ -41,7 +41,7 @@ export const signUp = (firstName, lastName, email, password) => {
 };
 
 export const updateSignedInUserData = async (userId, newData) => {
-  if (newData.firstName && newData.firstName) {
+  if (newData.firstName && newData.lastName) {
     const firstLast = `${newData.firstName} ${newData.lastName}`.toLowerCase();
     newData.firstLast = firstLast;
   }

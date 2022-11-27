@@ -33,6 +33,29 @@ export const getUserData = async userId => {
   }
 };
 
+export const getUserChat = async userId => {
+  try {
+    const { app } = getFirebaseApp();
+    const dbRef = ref(getDatabase(app));
+    const userRef = child(dbRef, `userChats/${userId}`);
+
+    const snapshot = await get(userRef);
+
+    return snapshot.val();
+  } catch (error) {
+    console.log(
+      '🚀 -------------------------------------------------------------------🚀',
+    );
+    console.log(
+      '🚀 ~~ file: userActions.js ~~ line 13 ~~ getUserData ~~ error',
+      error,
+    );
+    console.log(
+      '🚀 -------------------------------------------------------------------🚀',
+    );
+  }
+};
+
 export const searchUsers = async queryText => {
   const searchTerm = queryText.toLowerCase();
   try {

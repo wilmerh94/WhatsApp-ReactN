@@ -4,7 +4,12 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { child, get, getDatabase, off, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  View,
+} from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
 import colors from '../constants/colors';
@@ -12,6 +17,7 @@ import commonStyles from '../constants/commonStyles';
 import { ChatListScreen } from '../screens/ChatListScreen';
 import { ChatScreen } from '../screens/ChatScreen';
 import { ChatSettingsScreen } from '../screens/ChatSettingsScreen';
+import { ContactScreen } from '../screens/ContactScreen';
 import { NewChatScreen } from '../screens/NewChatScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { setChatsData } from '../store/chatSlice';
@@ -83,7 +89,18 @@ const StackNavigator = () => {
           name="ChatSettings"
           component={ChatSettingsScreen}
           options={{
-            title: 'Settings',
+            title: '',
+            headerBackTitle: 'Back',
+            cardShadowEnabled: true,
+            gestureEnabled: true,
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="Contact"
+          component={ContactScreen}
+          options={{
+            title: 'Contact Info',
             headerBackTitle: 'Back',
             cardShadowEnabled: true,
             gestureEnabled: true,
@@ -110,8 +127,11 @@ const StackNavigator = () => {
 
 export const MainNavigator = props => {
   const dispatch = useDispatch();
+
   const [isLoading, setIsLoading] = useState(true);
+
   const { userData } = useSelector(state => state.auth);
+
   const { storedUsers } = useSelector(state => state.users);
 
   useEffect(() => {
@@ -123,30 +143,36 @@ export const MainNavigator = props => {
     onValue(userChatsRef, querySnapshot => {
       const chatIdsData = querySnapshot.val() || {};
       const chatIds = Object.values(chatIdsData);
+
       const chatsData = {};
       let chatsFoundCount = 0;
+
       for (let i = 0; i < chatIds.length; i++) {
         const chatId = chatIds[i];
         const chatRef = child(dbRef, `chats/${chatId}`);
         refs.push(chatRef);
         onValue(chatRef, chatSnapshot => {
           chatsFoundCount++;
+
           const data = chatSnapshot.val();
           if (data) {
             data.key = chatSnapshot.key;
 
             data.users.forEach(userId => {
               if (storedUsers[userId]) return;
+
               const userRef = child(dbRef, `users/${userId}`);
               get(userRef).then(userSnapshot => {
                 const userSnapshotData = userSnapshot.val();
                 dispatch(setStoredUsers({ newUsers: { userSnapshotData } }));
               });
+
               refs.push(userRef);
             });
 
             chatsData[chatSnapshot.key] = data;
           }
+
           if (chatsFoundCount >= chatIds.length) {
             dispatch(setChatsData({ chatsData }));
             setIsLoading(false);
@@ -175,7 +201,7 @@ export const MainNavigator = props => {
       dispatch(setStarredMessages({ starredMessages }));
     });
     return () => {
-      refs.forEach(ref => off(userChatsRef));
+      refs.forEach(rf => off(rf));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -186,5 +212,11 @@ export const MainNavigator = props => {
     </View>;
   }
 
-  return <StackNavigator />;
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StackNavigator />
+    </KeyboardAvoidingView>
+  );
 };

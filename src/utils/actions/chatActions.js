@@ -18,6 +18,7 @@ export const createChat = async (loggedInUserId, chatData) => {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+
   const { app } = getFirebaseApp();
   const dbRef = ref(getDatabase(app));
   const newChat = await push(child(dbRef, 'chats'), newChatData);
@@ -52,7 +53,7 @@ const sendMessage = async (
   replyTo,
 ) => {
   const { app } = getFirebaseApp();
-  const dbRef = ref(getDatabase(app));
+  const dbRef = ref(getDatabase());
   const messagesRef = child(dbRef, `messages/${chatId}`);
 
   const messageData = {
