@@ -24,7 +24,9 @@ export const authSlice = createSlice({
   reducers: {
     authenticate: (state, action) => {
       const { payload } = action;
+
       state.token = payload.token;
+
       state.userData = payload.userData;
       state.didTryAutoLogin = true;
     },
@@ -37,7 +39,7 @@ export const authSlice = createSlice({
       state.didTryAutoLogin = false;
     },
     updateSignInUserData: (state, action) => {
-      state.userData = { ...initialState.userData, ...action.payload.newData };
+      state.userData = { ...state.userData, ...action.payload.newData };
     },
   },
 });

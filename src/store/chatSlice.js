@@ -11,8 +11,11 @@ export const chatSlice = createSlice({
     setChatsData: (state, action) => {
       state.userChatData = { ...action.payload.chatsData };
     },
+    clearData: (state, action) => {
+      state.userChatData = {};
+    },
   },
 });
 
-export const { setChatsData } = chatSlice.actions;
+export const { setChatsData, clearData } = chatSlice.actions;
 export default chatSlice.reducer;

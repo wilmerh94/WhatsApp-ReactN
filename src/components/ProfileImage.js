@@ -1,5 +1,5 @@
 import { FontAwesome } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import userImage from '../../assets/images/userImage.jpeg';
 import colors from '../constants/colors';
 import { updateLoggedInUserData } from '../store/authSlice';
 import { updateSignedInUserData } from '../utils/actions/authActions';
+import { updateChatData } from '../utils/actions/chatActions';
 import {
   launchImagePicker,
   uploadImageAsync,
@@ -20,14 +21,17 @@ import {
 
 export const ProfileImage = props => {
   const dispatch = useDispatch();
+
   const source = props.uri ? { uri: props.uri } : userImage;
 
-  const [image, setImage] = useState(source);
+  const [image, setImage] = useState(prev => ({ ...prev, ...source }));
+
   const [isLoading, setIsLoading] = useState(false);
   const showEditButton = props.showEditButton && props.showEditButton === true;
   const showRemoveButton =
     props.showRemoveButton && props.showRemoveButton === true;
   const userId = props.userId;
+  const chatId = props.chatId;
 
   const pickImage = async () => {
     try {
@@ -36,18 +40,24 @@ export const ProfileImage = props => {
 
       //Upload the image
       setIsLoading(true);
-      const uploadUri = await uploadImageAsync(tempUri);
-      setIsLoading(false);
+      const uploadUrl = await uploadImageAsync(tempUri, chatId !== undefined);
 
-      if (!uploadUri) {
+      if (!uploadUrl) {
         throw new Error("Couldn't upload image");
       }
-      const newData = { profilePicture: uploadUri };
 
-      await updateSignedInUserData(userId, newData);
-      dispatch(updateLoggedInUserData({ newData }));
+      if (chatId) {
+        await updateChatData(chatId, userId, { chatImage: uploadUrl });
+      } else {
+        const newData = { profilePicture: uploadUrl };
+
+        await updateSignedInUserData(userId, newData);
+        dispatch(updateLoggedInUserData({ newData }));
+      }
+
       // Set the image
-      setImage({ uri: tempUri });
+      setImage({ uri: uploadUrl });
+      setIsLoading(false);
     } catch (err) {
       console.log(
         '🚀 --------------------------------------------------------------🚀',
@@ -58,6 +68,16 @@ export const ProfileImage = props => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (props?.uri?.includes('chatImages')) {
+      return setImage(source);
+    }
+    if (props?.uri === undefined) {
+      return setImage(userImage);
+    }
+  }, [props?.goBack, props?.uri?.includes('chatImages')]);
+
   const Container = props.onPress || showEditButton ? TouchableOpacity : View;
   return (
     <Container onPress={props.onPress || pickImage} style={props.style}>
@@ -70,6 +90,7 @@ export const ProfileImage = props => {
         </View>
       ) : (
         <Image
+          key={props.chatId ? props.chatId : ''}
           source={image}
           style={{
             ...styles.image,

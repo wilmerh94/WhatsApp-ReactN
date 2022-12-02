@@ -27,6 +27,7 @@ export const StartUpScreen = () => {
         return;
       }
       const userData = await getUserData(userId);
+
       dispatch(authenticate({ token: token, userData }));
     };
 
@@ -36,7 +37,6 @@ export const StartUpScreen = () => {
   return (
     <View style={commonStyles.center}>
       <ActivityIndicator size="large" color={colors.primary} />
-      {/* <Text>StartUpScreen</Text> */}
     </View>
   );
 };

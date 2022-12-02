@@ -97,10 +97,14 @@ export const Bubble = props => {
       bubbleStyle.maxWidth = '90%';
       Container = TouchableWithoutFeedback;
       isUserMessage = true;
-
       break;
     case 'reply':
       bubbleStyle.backgroundColor = '#F2F2F2';
+      break;
+    case 'info':
+      bubbleStyle.backgroundColor = 'white';
+      bubbleStyle.alignItems = 'center';
+      textStyle.color = colors.textColor;
       break;
     default:
       break;
@@ -128,7 +132,7 @@ export const Bubble = props => {
           menuRef.current.props.ctx.menuActions.openMenu(id.current)
         }>
         <View style={bubbleStyle}>
-          {name && <Text style={styles.name}>{name}</Text>}
+          {name && type !== 'info' && <Text style={styles.name}>{name}</Text>}
           {replyingToUser && (
             <Bubble
               type="reply"
@@ -141,7 +145,7 @@ export const Bubble = props => {
           {imageUrl && (
             <Image source={{ uri: imageUrl }} style={styles.image} />
           )}
-          {dateString && (
+          {dateString && type !== 'info' && (
             <View style={styles.timeContainer}>
               {isStarred && (
                 <FontAwesome

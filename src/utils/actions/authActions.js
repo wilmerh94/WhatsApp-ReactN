@@ -1,10 +1,15 @@
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  updateEmail,
 } from 'firebase/auth';
-import { child, getDatabase, ref, set, update } from 'firebase/database';
+import { child, get, getDatabase, ref, set, update } from 'firebase/database';
 import { authenticate, logout } from '../../store/authSlice';
+import { clearData } from '../../store/chatSlice';
 import { getFirebaseApp } from '../firebaseHelper';
 
 import { getUserData } from './userActions';
@@ -25,10 +30,16 @@ export const signUp = (firstName, lastName, email, password) => {
       const { accessToken, expirationTime } = stsTokenManager;
       const expiryDate = new Date(expirationTime);
 
+      const timeNow = new Date();
+      const millisecondsUntilExpiry = expiryDate - timeNow;
       const userData = await createUser(firstName, lastName, email, uid);
 
       dispatch(authenticate({ token: accessToken, userData }));
       saveDataToStorage(accessToken, uid, expiryDate);
+      await storePushToken(userData);
+      timer = setTimeout(() => {
+        dispatch(userLogout(userData));
+      }, millisecondsUntilExpiry);
     } catch (error) {
       const errorCode = error.code;
       let message = 'Something went wrong';
@@ -45,8 +56,10 @@ export const updateSignedInUserData = async (userId, newData) => {
     const firstLast = `${newData.firstName} ${newData.lastName}`.toLowerCase();
     newData.firstLast = firstLast;
   }
+  const { auth } = getFirebaseApp();
   const dbRef = ref(getDatabase());
   const childRef = child(dbRef, `users/${userId}`);
+  await updateEmail(auth.currentUser, newData.email);
   await update(childRef, newData);
 };
 
@@ -80,6 +93,7 @@ export const signIn = (email, password) => {
 
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
+
       const { uid, stsTokenManager } = result.user;
       const { accessToken, expirationTime } = stsTokenManager;
       const expiryDate = new Date(expirationTime);
@@ -89,9 +103,9 @@ export const signIn = (email, password) => {
 
       dispatch(authenticate({ token: accessToken, userData }));
       saveDataToStorage(accessToken, uid, expiryDate);
-
+      await storePushToken(userData);
       timer = setTimeout(() => {
-        dispatch(userLogout());
+        dispatch(userLogout(userData));
       }, millisecondsUntilExpiry);
     } catch (error) {
       const errorCode = error.code;
@@ -108,10 +122,88 @@ export const signIn = (email, password) => {
   };
 };
 
-export const userLogout = () => {
+export const userLogout = userData => {
   return async dispatch => {
+    try {
+      await removePushToken(userData);
+    } catch (error) {
+      console.log(
+        '🚀🚀🚀 ~~ file: authActions.js:132 ~~ userLogout ~~ error',
+        error,
+      );
+    }
     AsyncStorage.clear();
     clearTimeout(timer);
+    dispatch(clearData());
+
     dispatch(logout());
   };
+};
+
+export const storePushToken = async userData => {
+  if (!Device.isDevice) return;
+
+  const token = (await Notifications.getExpoPushTokenAsync()).data;
+
+  const tokenData = { ...userData.pushTokens } ?? {};
+  const tokenArray = Object.values(tokenData);
+
+  if (tokenArray.includes(token)) return;
+
+  tokenArray.push(token);
+
+  for (let i = 0; i < tokenArray.length; i++) {
+    const tok = tokenArray[i];
+    tokenData[i] = tok;
+  }
+
+  const { app } = getFirebaseApp();
+  const dbRef = ref(getDatabase(app));
+  const userRef = child(dbRef, `users/${userData.userId}/pushTokens`);
+  await set(userRef, tokenData);
+};
+export const removePushToken = async userData => {
+  if (!Device.isDevice) return;
+
+  const token = (await Notifications.getExpoPushTokenAsync()).data;
+
+  const tokenData = await getUserPushTokens(userData.userId);
+
+  console.log(
+    '🚀🚀🚀 ~~ file: authActions.js:165 ~~ removePushToken ~~ tokenData',
+    tokenData,
+  );
+
+  for (const key in tokenData) {
+    if (tokenData[key] === token) {
+      delete tokenData[key];
+      break;
+    }
+  }
+
+  const { app } = getFirebaseApp();
+  const dbRef = ref(getDatabase(app));
+  const userRef = child(dbRef, `users/${userData.userId}/pushTokens`);
+  console.log(tokenData);
+  await set(userRef, tokenData);
+};
+
+export const getUserPushTokens = async userId => {
+  try {
+    const { app } = getFirebaseApp();
+    const dbRef = ref(getDatabase(app));
+    const userRef = child(dbRef, `users/${userId}/pushTokens`);
+
+    const snapshot = await get(userRef);
+
+    if (!snapshot || !snapshot.exists()) {
+      return {};
+    }
+    return snapshot.val();
+  } catch (error) {
+    console.log(
+      '🚀🚀🚀 ~~ file: authActions.js:185 ~~ getUserPushTokens ~~ error',
+      error,
+    );
+  }
 };

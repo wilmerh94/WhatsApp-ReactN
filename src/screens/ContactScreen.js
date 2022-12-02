@@ -1,20 +1,27 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
 import { useSelector } from 'react-redux';
 import { DataItem } from '../components/DataItem';
 import { PageContainer } from '../components/PageContainer';
 import { PageTitle } from '../components/PageTitle';
 import { ProfileImage } from '../components/ProfileImage';
+import { SubmitButton } from '../components/SubmitButton';
 import colors from '../constants/colors';
+import { removeUserFromChat } from '../utils/actions/chatActions';
 import { getUserChat } from '../utils/actions/userActions';
 
 export const ContactScreen = props => {
   const { storedUsers } = useSelector(state => state.users);
+  const { userData } = useSelector(state => state.auth);
+  const { userChatData: storedChats } = useSelector(state => state.chats);
+
+  const [commonChat, setCommonChat] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const currentUser = storedUsers[props.route.params.uid];
+  const chatId = props.route.params.chatId;
 
-  const { userChatData: storedChats } = useSelector(state => state.chats);
-  const [commonChat, setCommonChat] = useState([]);
+  const chatData = chatId && storedChats[chatId];
 
   useEffect(() => {
     const getCommonUserChats = async () => {
@@ -30,11 +37,29 @@ export const ContactScreen = props => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const removeFromChat = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      /* Remove User */
+      await removeUserFromChat(userData, currentUser, chatData);
+
+      props.navigation.goBack();
+    } catch (error) {
+      console.log(
+        '🚀🚀🚀 ~~ file: ContactScreen.js ~~ line 42 ~~ removeFromChat ~~ error',
+        error,
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [props.navigation, isLoading]);
+
   return (
     <PageContainer>
       <View style={styles.topContainer}>
         <ProfileImage
-          uir={currentUser.profilePicture}
+          uri={currentUser.profilePicture}
           size={80}
           style={styles.profilePicture}
         />
@@ -63,11 +88,23 @@ export const ContactScreen = props => {
                 onPress={() =>
                   props.navigation.push('ChatScreen', { chatId: chId })
                 }
+                image={chatData.chatImage}
               />
             );
           })}
         </>
       )}
+      {chatData &&
+        chatData.isGroupChat &&
+        (isLoading ? (
+          <ActivityIndicator size={'small'} color={colors.primary} />
+        ) : (
+          <SubmitButton
+            title="Remove from Chat"
+            color={colors.chat}
+            onPress={removeFromChat}
+          />
+        ))}
     </PageContainer>
   );
 };

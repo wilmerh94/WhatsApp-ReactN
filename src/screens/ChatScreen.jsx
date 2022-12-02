@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unstable-nested-components */
 import { Feather } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -20,6 +21,7 @@ import { useSelector } from 'react-redux';
 import backgroundImage from '../../assets/images/home_bg.jpg';
 import { Bubble } from '../components/Bubble';
 import { CustomHeaderButton } from '../components/CustomHeaderButton';
+import { ImagePreviewChat } from '../components/ImagePreviewChat';
 import { PageContainer } from '../components/PageContainer';
 import { ReplyTo } from '../components/ReplyTo';
 import colors from '../constants/colors';
@@ -44,9 +46,12 @@ export const ChatScreen = props => {
   const [tempImageUri, setTempImageUri] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  /* Using ref to control FlatList scrolls */
   const flatList = useRef();
+
   /* Redux functions */
   const { userData } = useSelector(state => state.auth);
+
   const { storedUsers } = useSelector(state => state.users);
   const { userChatData } = useSelector(state => state.chats);
 
@@ -72,7 +77,7 @@ export const ChatScreen = props => {
 
   /* Making sure i have a chat data to display */
   const chatData =
-    (chatId && userChatData[chatId]) || props.route?.params?.newChatData;
+    (chatId && userChatData[chatId]) || props.route?.params?.newChatData || {};
 
   /* Title for the Chat  */
   const getChatTitleFromName = () => {
@@ -85,12 +90,20 @@ export const ChatScreen = props => {
     );
   };
 
-  const title = chatData.chatName ?? getChatTitleFromName();
-
   /* Calling the function above to be use in the navigation props and be able to display title, it will render just when chatUsers change */
   useEffect(() => {
+    if (!chatData) return;
     props.navigation.setOptions({
-      headerTitle: title,
+      headerTitle: chatData.chatName ?? getChatTitleFromName(),
+      headerLeft: () => (
+        <HeaderButtons HeaderButtonComponent={CustomHeaderButton}>
+          <Item
+            title="Back"
+            iconName="chevron-back-outline"
+            onPress={() => props.navigation.navigate('ChatList')}
+          />
+        </HeaderButtons>
+      ),
       headerRight: () => {
         return (
           <HeaderButtons HeaderButtonComponent={CustomHeaderButton}>
@@ -100,7 +113,10 @@ export const ChatScreen = props => {
                 iconName="settings-outline"
                 onPress={() => {
                   chatData.isGroupChat
-                    ? props.navigation.navigate('ChatSettings', { chatId })
+                    ? props.navigation.navigate('ChatSettings', {
+                        chatId,
+                        isGroupChat: chatData.isGroupChat,
+                      })
                     : props.navigation.navigate('Contact', {
                         uid: chatUsers.find(uid => uid !== userData.userId),
                       });
@@ -114,33 +130,25 @@ export const ChatScreen = props => {
 
     setChatUsers(chatData.users);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatUsers]);
+  }, [chatUsers, userChatData]);
 
   /* Creating for first time chat and Sending message to the DB */
 
   const sendMessage = useCallback(async () => {
     try {
       let id = chatId;
-      console.log(props.route.params);
       if (!id) {
         // No chat - create the chat
         id = await createChat(userData.userId, props.route.params.newChatData);
         setChatId(id);
-
-        await sendTextMessage(
-          id,
-          userData.userId,
-          messageText,
-          replyingTo && replyingTo.key,
-        );
-      } else {
-        await sendTextMessage(
-          chatId,
-          userData.userId,
-          messageText,
-          replyingTo && replyingTo.key,
-        );
       }
+      await sendTextMessage(
+        id,
+        userData,
+        messageText,
+        replyingTo && replyingTo.key,
+        chatUsers,
+      );
       setMessageText('');
       setReplyingTo(null);
     } catch (error) {
@@ -156,6 +164,7 @@ export const ChatScreen = props => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messageText, chatId]);
 
+  /* Function to pick image and have a preview */
   const pickImage = useCallback(async () => {
     try {
       const tempUri = await launchImagePicker();
@@ -171,6 +180,7 @@ export const ChatScreen = props => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tempImageUri]);
 
+  /* Function to take pics from the mobile Camera */
   const takePhoto = useCallback(async () => {
     try {
       const tempUri = await openCamera();
@@ -186,6 +196,7 @@ export const ChatScreen = props => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tempImageUri]);
 
+  /* Uploading the Image to my DB */
   const uploadImage = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -200,9 +211,10 @@ export const ChatScreen = props => {
       setIsLoading(false);
       await sendImage(
         id,
-        userData.userId,
+        userData,
         uploadUrl,
         replyingTo && replyingTo.key,
+        chatUsers,
       );
       setReplyingTo(null);
       /*  Send Image */
@@ -241,7 +253,15 @@ export const ChatScreen = props => {
               renderItem={itemData => {
                 const message = itemData.item;
                 const isOwnMessage = message.sentBy === userData.userId;
-                const messageType = isOwnMessage ? 'myMessage' : 'theirMessage';
+
+                let messageType;
+                if (message.type && message.type === 'info') {
+                  messageType = 'info';
+                } else if (isOwnMessage) {
+                  messageType = 'myMessage';
+                } else {
+                  messageType = 'theirMessage';
+                }
 
                 const sender = message.sentBy && storedUsers[message.sentBy];
 
@@ -250,8 +270,8 @@ export const ChatScreen = props => {
                   <Bubble
                     type={messageType}
                     text={message.text}
-                    userId={userData.userId}
                     messageId={message.key}
+                    userId={userData.userId}
                     chatId={chatId}
                     date={message.sentAt}
                     name={
@@ -277,6 +297,18 @@ export const ChatScreen = props => {
             onCancel={() => setReplyingTo(null)}
           />
         )}
+
+        {/* Preview Image */}
+        {isLoading && <ActivityIndicator size="small" color={colors.primary} />}
+        {!isLoading && tempImageUri !== '' && (
+          <ImagePreviewChat
+            tempImageUri={tempImageUri}
+            onCancel={() => setTempImageUri('')}
+            onConfirmPressed={uploadImage}
+          />
+        )}
+
+        {/*  */}
       </ImageBackground>
       <View style={styles.inputContainer}>
         <TouchableOpacity style={styles.mediaButton} onPress={pickImage}>
@@ -288,7 +320,7 @@ export const ChatScreen = props => {
           onChangeText={text => setMessageText(text)}
           onSubmitEditing={sendMessage}
         />
-        {messageText === '' ? (
+        {messageText === '' && tempImageUri === '' ? (
           <TouchableOpacity style={styles.mediaButton} onPress={takePhoto}>
             <Feather name="camera" size={24} color={colors.blue} />
           </TouchableOpacity>
@@ -300,7 +332,7 @@ export const ChatScreen = props => {
           </TouchableOpacity>
         )}
 
-        <AwesomeAlert
+        {/* <AwesomeAlert
           show={tempImageUri !== ''}
           title="Send Image?"
           closeOnTouchOutside={true}
@@ -328,7 +360,7 @@ export const ChatScreen = props => {
               )}
             </View>
           }
-        />
+        /> */}
       </View>
       {/* </KeyboardAvoidingView> */}
     </SafeAreaView>

@@ -1,18 +1,16 @@
 import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
-import { useCallback, useReducer, useState } from 'react';
+import { useCallback, useMemo, useReducer, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { DataItem } from '../components/DataItem';
 import { Input } from '../components/Input';
 import { PageContainer } from '../components/PageContainer';
 import { PageTitle } from '../components/PageTitle';
 import { ProfileImage } from '../components/ProfileImage';
 import { SubmitButton } from '../components/SubmitButton';
 import colors from '../constants/colors';
-import {
-  updateLoggedInUserData,
-  updateSignInUserData,
-} from '../store/authSlice';
+import { updateLoggedInUserData } from '../store/authSlice';
 import {
   updateSignedInUserData,
   userLogout,
@@ -20,13 +18,27 @@ import {
 import { validateInput } from '../utils/actions/formActions';
 import { reducer } from '../utils/reducers/formReducer';
 
-export const SettingsScreen = () => {
+export const SettingsScreen = props => {
   const dispatch = useDispatch();
-  const userData = useSelector(state => state.auth.userData);
+  const { userData } = useSelector(state => state.auth);
 
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const starredMessages = useSelector(
+    state => state.messages.starredMessages ?? {},
+  );
 
+  const sortedStarredMessages = useMemo(() => {
+    let result = [];
+    const chats = Object.values(starredMessages);
+
+    chats.forEach(chat => {
+      const chatMessages = Object.values(chat);
+
+      result = result.concat(chatMessages);
+    });
+    return result;
+  }, [starredMessages]);
   const firstName = userData.firstName || '';
   const lastName = userData.lastName || '';
   const email = userData.email || '';
@@ -53,7 +65,11 @@ export const SettingsScreen = () => {
   const inputChangedHandler = useCallback(
     (inputId, inputValue) => {
       const result = validateInput(inputId, inputValue);
-      dispatchFormState({ inputId, validationResult: result, inputValue });
+      dispatchFormState({
+        inputId,
+        validationResult: result,
+        inputValue,
+      });
     },
     [dispatchFormState],
   );
@@ -157,9 +173,23 @@ export const SettingsScreen = () => {
             )
           )}
         </View>
+
+        <DataItem
+          type={'link'}
+          title="Starred Messages"
+          hideImage={true}
+          onPress={() =>
+            props.navigation.navigate('DataList', {
+              title: 'Starred Messages',
+              data: sortedStarredMessages,
+              type: 'messages',
+            })
+          }
+        />
+
         <SubmitButton
           title="Logout"
-          onPress={() => dispatch(userLogout())}
+          onPress={() => dispatch(userLogout(userData))}
           color={colors.red}
           style={styles.submitButton}
         />

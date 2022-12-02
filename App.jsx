@@ -16,6 +16,7 @@ LogBox.ignoreLogs(['new NativeEventEmitter']); // Ignore log notification by mes
 /**
  *! HACK */
 // AsyncStorage.clear();
+
 SplashScreen.preventAutoHideAsync();
 
 export default function App() {

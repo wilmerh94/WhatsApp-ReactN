@@ -1,6 +1,11 @@
 import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import { useCallback, useReducer, useState } from 'react';
-import { ActivityIndicator, StyleSheet } from 'react-native';
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useDispatch } from 'react-redux';
 import colors from '../constants/colors';
 import { signIn } from '../utils/actions/authActions';
@@ -14,7 +19,7 @@ const isTestMode = true;
 
 const initialState = {
   inputValues: {
-    email: isTestMode ? 'test1@test.com' : '',
+    email: isTestMode ? 'test@test.com' : '',
     password: isTestMode ? '123456' : '',
   },
   inputValidities: {
@@ -27,7 +32,10 @@ const initialState = {
 export const SignInForm = () => {
   const dispatch = useDispatch();
 
-  const [formState, dispatchFormState] = useReducer(reducer, initialState);
+  const [formState, dispatchFormState] = useReducer(
+    reducer,
+    initialState,
+  );
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState();
@@ -35,7 +43,12 @@ export const SignInForm = () => {
   const inputChangedHandler = useCallback(
     (inputId, inputValue) => {
       const result = validateInput(inputId, inputValue);
-      dispatchFormState({ inputId, validationResult: result, inputValue });
+
+      dispatchFormState({
+        inputId,
+        validationResult: result,
+        inputValue,
+      });
     },
     [dispatchFormState],
   );
@@ -46,9 +59,15 @@ export const SignInForm = () => {
     try {
       setIsLoading(true);
       const action = signIn(email, password);
+
       setError(null);
       await dispatch(action);
     } catch (err) {
+      console.log(
+        '🚀🚀🚀 ~~ file: SignInForm .jsx ~~ line 72 ~~ authHandler ~~ err',
+        err,
+      );
+
       setIsLoading(false);
 
       setError(err);

@@ -30,24 +30,34 @@ export const SignUpForm = () => {
 
   const [error, setError] = useState();
   const [isLoading, setIsLoading] = useState(false);
-  const [formState, dispatchFormState] = useReducer(reducer, initialState);
+  const [formState, dispatchFormState] = useReducer(
+    reducer,
+    initialState,
+  );
 
   const inputChangedHandler = useCallback(
     (inputId, inputValue) => {
       const result = validateInput(inputId, inputValue);
-      dispatchFormState({ inputId, validationResult: result, inputValue });
+      dispatchFormState({
+        inputId,
+        validationResult: result,
+        inputValue,
+      });
     },
     [dispatchFormState],
   );
 
   useEffect(() => {
     if (error) {
-      Alert.alert('An error occurred ', error.message, [{ text: 'Okay' }]);
+      Alert.alert('An error occurred ', error.message, [
+        { text: 'Okay' },
+      ]);
     }
   }, [error]);
 
   const authHandler = useCallback(async () => {
-    const { firstName, lastName, email, password } = formState.inputValues;
+    const { firstName, lastName, email, password } =
+      formState.inputValues;
     try {
       setIsLoading(true);
       const action = signUp(firstName, lastName, email, password);

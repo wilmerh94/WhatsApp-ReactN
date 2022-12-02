@@ -1,21 +1,58 @@
-import { Ionicons } from '@expo/vector-icons';
+import { AntDesign, Ionicons } from '@expo/vector-icons';
+import { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableWithoutFeedback } from 'react-native';
+import { useSelector } from 'react-redux';
 import colors from '../constants/colors';
 import { ProfileImage } from './ProfileImage';
 
+const imageSize = 40;
+
 export const DataItem = props => {
-  const { title, subTitle, image, type, isChecked } = props;
+  const {
+    title,
+    subTitle,
+    image,
+    type,
+    isChecked,
+    icon,
+    chatId,
+    goBack,
+    isGroupChat,
+  } = props;
+
+  const hideImage = props.hideImage && props.hideImage === true;
+
   return (
     <TouchableWithoutFeedback onPress={props.onPress}>
       <View style={styles.container}>
-        <ProfileImage uri={image} size={40} />
+        {!icon && !hideImage && (
+          <ProfileImage
+            uri={image}
+            chatId={chatId}
+            size={imageSize}
+            goBack={goBack}
+            isGroupChat={isGroupChat}
+          />
+        )}
+        {icon && (
+          <View style={styles.leftIconContainer}>
+            <AntDesign name={icon} size={20} color={colors.blue} />
+          </View>
+        )}
         <View style={styles.textContainer}>
-          <Text numberOfLines={1} style={styles.title}>
+          <Text
+            numberOfLines={1}
+            style={{
+              ...styles.title,
+              ...{ color: type === 'button' ? colors.blue : colors.textColor },
+            }}>
             {title}
           </Text>
-          <Text numberOfLines={1} style={styles.subTitle}>
-            {subTitle}
-          </Text>
+          {subTitle && (
+            <Text numberOfLines={1} style={styles.subTitle}>
+              {subTitle}
+            </Text>
+          )}
         </View>
         {type === 'checkbox' && (
           <View
@@ -52,6 +89,14 @@ const styles = StyleSheet.create({
     //  marginVertical: 8,
     //  paddingHorizontal: 8,
     //  borderRadius: 5,
+  },
+  leftIconContainer: {
+    backgroundColor: colors.extraLightGrey,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 40,
+    height: 40,
   },
   textContainer: {
     marginLeft: 14,
